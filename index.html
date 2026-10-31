@@ -72,6 +72,44 @@
       color: #888;
       font-size: 14px;
     }
+    
+    .portrait-warning {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.9);
+      color: #ff4444;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      z-index: 10000;
+      display: none;
+    }
+    
+    .portrait-warning.show {
+      display: block;
+    }
+    
+    .portrait-warning h2 {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+    
+    .portrait-warning p {
+      font-size: 16px;
+      margin-bottom: 20px;
+    }
+    
+    .portrait-warning button {
+      background: #00ff88;
+      color: #000;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+    }
   </style>
 </head>
 <body>
@@ -105,6 +143,9 @@
       }
     }
     
+    // Check orientation immediately on load
+    checkOrientation();
+    
     window.addEventListener('resize', checkOrientation);
     window.addEventListener('orientationchange', checkOrientation);
     
@@ -112,6 +153,8 @@
     window.addEventListener('load', () => {
       setTimeout(() => {
         document.getElementById('loading-screen').style.display = 'none';
+        // Re-check orientation after loading
+        checkOrientation();
       }, 1000);
     });
   </script>
