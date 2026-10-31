@@ -14,35 +14,58 @@ export class Renderer {
   private lastTime: number = 0
 
   constructor(canvas: HTMLCanvasElement) {
-    // PIXI-Anwendung initialisieren
-    this.app = new PIXI.Application({
-      view: canvas,
-      width: window.innerWidth,
-      height: window.innerHeight,
-      backgroundColor: 0x0A0A1A,
-      resolution: window.devicePixelRatio || 1,
-      autoDensity: true,
-      antialias: true,
-    })
+    this.initApplication(canvas)
+  }
 
-    // Resize-Handler
-    window.addEventListener('resize', this.handleResize.bind(this))
+  private async initApplication(canvas: HTMLCanvasElement): Promise<void> {
+    try {
+      // Initialize PIXI Application with v8 API
+      this.app = await PIXI.Application.init({
+        view: canvas,
+        width: window.innerWidth,
+        height: window.innerHeight,
+        backgroundColor: 0x0A0A1A,
+        resolution: window.devicePixelRatio || 1,
+        autoDensity: true,
+        antialias: true,
+      })
 
-    // Szenen initialisieren
-    this.initScenes()
+      // Resize-Handler
+      window.addEventListener('resize', this.handleResize.bind(this))
 
-    // Erste Szene anzeigen
-    this.showScene('title')
+      // Initialize scenes
+      this.initScenes()
 
-    // Game State Listener
-    gameStateManager.subscribe(this.handleGameStateChange.bind(this))
+      // Show first scene
+      this.showScene('title')
 
-    // Start Game Loop
-    this.startGameLoop()
+      // Game State Listener
+      gameStateManager.subscribe(this.handleGameStateChange.bind(this))
+
+      // Start Game Loop
+      this.startGameLoop()
+    } catch (error) {
+      console.error('Failed to initialize PIXI Application:', error)
+      // Fallback for mobile devices with WebGL issues
+      this.showFallbackMessage(canvas)
+    }
+  }
+
+  private showFallbackMessage(canvas: HTMLCanvasElement): void {
+    const ctx = canvas.getContext('2d')
+    if (ctx) {
+      ctx.fillStyle = '#0A0A1A'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx.fillStyle = '#00FF88'
+      ctx.font = '24px Arial'
+      ctx.textAlign = 'center'
+      ctx.fillText('WebGL wird nicht unterstützt', canvas.width / 2, canvas.height / 2 - 20)
+      ctx.fillText('Bitte verwende einen modernen Browser', canvas.width / 2, canvas.height / 2 + 20)
+    }
   }
 
   private initScenes(): void {
-    // Alle Szenen-Container erstellen
+    // Create all scene containers
     const sceneNames: GameScene[] = [
       'title', 'workshop', 'mission-select', 'diagnosis', 
       'repair', 'test-flight', 'mission-complete', 'settings', 'game-over'
@@ -54,7 +77,7 @@ export class Renderer {
       this.app.stage.addChild(this.scenes[scene])
     })
 
-    // Einzelne Szenen initialisieren
+    // Initialize individual scenes
     this.initTitleScene()
     this.initWorkshopScene()
     this.initMissionSelectScene()
@@ -71,7 +94,7 @@ export class Renderer {
       const deltaTime = time - this.lastTime
       this.lastTime = time
 
-      // Testflug aktualisieren
+      // Update test flight
       if (this.currentScene === 'test-flight' && this.testFlight) {
         this.testFlight.update(deltaTime)
         this.renderTestFlight()
@@ -87,94 +110,100 @@ export class Renderer {
     const width = window.innerWidth
     const height = window.innerHeight
 
-    this.app.renderer.resize(width, height)
+    if (this.app && this.app.renderer) {
+      this.app.renderer.resize(width, height)
+    }
 
-    // Alle Szenen neu positionieren
+    // Reposition all scenes
     Object.values(this.scenes).forEach(scene => {
       scene.position.set(width / 2, height / 2)
     })
 
-    // Testflug-Canvas aktualisieren
+    // Update test flight canvas
     if (this.currentScene === 'test-flight' && this.testFlight) {
       this.testFlight.destroy()
       this.showScene('test-flight')
     }
   }
 
-  // ============ SZENEN-INITIALISIERUNG ============
+  // ============ SCENE INITIALIZATION ============
 
   private initTitleScene(): void {
     const scene = this.scenes.title
 
-    // Hintergrund
+    // Background
     const bg = new PIXI.Graphics()
-    bg.beginFill(0x0A0A1A)
-    bg.drawRect(-window.innerWidth/2, -window.innerHeight/2, window.innerWidth, window.innerHeight)
-    bg.endFill()
+    bg.fill(0x0A0A1A)
+    bg.rect(-window.innerWidth/2, -window.innerHeight/2, window.innerWidth, window.innerHeight)
     scene.addChild(bg)
 
-    // Sterne-Hintergrund (Parallax)
+    // Starfield background (Parallax)
     this.createStarfield(scene, 100, 0.1)
 
-    // Titel
-    const titleStyle = {
-      fontFamily: 'Arial, sans-serif',
-      fontSize: 48,
-      fill: 0x00FF88,
-      align: 'center' as const,
-      fontWeight: 'bold' as const,
-      stroke: 0x004422,
-      strokeThickness: 2,
-    }
-
-    const title = new PIXI.Text('REBEL REPAIR', titleStyle)
+    // Title
+    const title = new PIXI.Text({
+      text: 'REBEL REPAIR',
+      style: {
+        fontFamily: 'Arial, sans-serif',
+        fontSize: 48,
+        fill: 0x00FF88,
+        align: 'center',
+        fontWeight: 'bold',
+        stroke: {
+          color: 0x004422,
+          width: 2
+        }
+      }
+    })
     title.anchor.set(0.5)
     title.position.set(0, -100)
     scene.addChild(title)
 
-    // Untertitel
-    const subtitleStyle = {
-      fontFamily: 'Arial, sans-serif',
-      fontSize: 18,
-      fill: 0x888888,
-      align: 'center' as const,
-    }
-
-    const subtitle = new PIXI.Text('Weltraum-Reparatur am Rande der Galaxis', subtitleStyle)
+    // Subtitle
+    const subtitle = new PIXI.Text({
+      text: 'Weltraum-Reparatur am Rande der Galaxis',
+      style: {
+        fontFamily: 'Arial, sans-serif',
+        fontSize: 18,
+        fill: 0x888888,
+        align: 'center'
+      }
+    })
     subtitle.anchor.set(0.5)
     subtitle.position.set(0, -40)
     scene.addChild(subtitle)
 
-    // Start-Button
+    // Start Button
     const startButton = this.createButton('NEUES SPIEL', 0x00AA44, 0x00FF88, () => {
       this.showScene('workshop')
     })
     startButton.position.set(0, 20)
     scene.addChild(startButton)
 
-    // Lade-Button
+    // Load Button
     const loadButton = this.createButton('SPIEL LADEN', 0x0066AA, 0x00AFFF, () => {
       const state = gameStateManager.getState()
       if (state.completedMissions > 0 || state.credits !== 5000) {
         this.showScene('workshop')
       } else {
-        // Kein Spielstand vorhanden
-        const message = new PIXI.Text('Kein Spielstand gefunden', {
-          fontFamily: 'Arial',
-          fontSize: 16,
-          fill: 0xFF4444,
+        const message = new PIXI.Text({
+          text: 'Kein Spielstand gefunden',
+          style: {
+            fontFamily: 'Arial',
+            fontSize: 16,
+            fill: 0xFF4444
+          }
         })
         message.anchor.set(0.5)
         message.position.set(0, 100)
         scene.addChild(message)
-        
         setTimeout(() => scene.removeChild(message), 2000)
       }
     })
     loadButton.position.set(0, 80)
     scene.addChild(loadButton)
 
-    // Einstellungen-Button
+    // Settings Button
     const settingsButton = this.createButton('EINSTELLUNGEN', 0x666666, 0x888888, () => {
       this.showScene('settings')
     })
@@ -185,64 +214,67 @@ export class Renderer {
   private initWorkshopScene(): void {
     const scene = this.scenes.workshop
 
-    // Hintergrund
+    // Background
     const bg = new PIXI.Graphics()
-    bg.beginFill(0x1A1A2A)
-    bg.drawRect(-window.innerWidth/2, -window.innerHeight/2, window.innerWidth, window.innerHeight)
-    bg.endFill()
+    bg.fill(0x1A1A2A)
+    bg.rect(-window.innerWidth/2, -window.innerHeight/2, window.innerWidth, window.innerHeight)
     scene.addChild(bg)
 
-    // Werkstatt-Hintergrund
+    // Workshop Background
     this.createWorkshopBackground(scene)
 
-    // Titel
-    const title = new PIXI.Text('WERKSTATT', {
-      fontFamily: 'Arial',
-      fontSize: 32,
-      fill: 0x00FF88,
-      align: 'center' as const,
+    // Title
+    const title = new PIXI.Text({
+      text: 'WERKSTATT',
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 32,
+        fill: 0x00FF88,
+        align: 'center'
+      }
     })
     title.anchor.set(0.5)
     title.position.set(0, -window.innerHeight/2 + 40)
     scene.addChild(title)
 
-    // Statistik
+    // Stats
     const statsContainer = new PIXI.Container()
     statsContainer.position.set(-window.innerWidth/2 + 20, -window.innerHeight/2 + 80)
     scene.addChild(statsContainer)
 
     const stats = gameStateManager.getStats()
-    const statsText = new PIXI.Text(`
-Credits: ${stats.currentCredits}
-Abgeschlossene Aufträge: ${stats.completedMissions}
-Gesamtverdient: ${stats.totalEarnings} Credits
-Reparaturen: ${stats.totalRepairs}
-`.trim(), {
-      fontFamily: 'Arial',
-      fontSize: 14,
-      fill: 0xCCCCCC,
+    const statsText = new PIXI.Text({
+      text: `\nCredits: ${stats.currentCredits}\nAbgeschlossene Aufträge: ${stats.completedMissions}\nGesamtverdient: ${stats.totalEarnings} Credits\nReparaturen: ${stats.totalRepairs}`,
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 14,
+        fill: 0xCCCCCC
+      }
     })
     statsContainer.addChild(statsText)
 
-    // Aktuelle Mission
+    // Missions Container
     const missionContainer = new PIXI.Container()
     missionContainer.position.set(0, -50)
     scene.addChild(missionContainer)
 
-    const missionTitle = new PIXI.Text('AKTUELLE AUFTRÄGE', {
-      fontFamily: 'Arial',
-      fontSize: 20,
-      fill: 0x00FF88,
-      align: 'center' as const,
+    const missionTitle = new PIXI.Text({
+      text: 'AKTUELLE AUFTRÄGE',
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 20,
+        fill: 0x00FF88,
+        align: 'center'
+      }
     })
     missionTitle.anchor.set(0.5)
     missionTitle.position.set(0, -150)
     missionContainer.addChild(missionTitle)
 
-    // Missionen anzeigen
+    // Display missions
     this.updateMissionDisplay(missionContainer)
 
-    // Zurück-Button
+    // Back Button
     const backButton = this.createButton('ZURÜCK', 0x666666, 0x888888, () => {
       this.showScene('title')
     })
@@ -253,25 +285,27 @@ Reparaturen: ${stats.totalRepairs}
   private initMissionSelectScene(): void {
     const scene = this.scenes['mission-select']
 
-    // Hintergrund
+    // Background
     const bg = new PIXI.Graphics()
-    bg.beginFill(0x1A1A2A)
-    bg.drawRect(-window.innerWidth/2, -window.innerHeight/2, window.innerWidth, window.innerHeight)
-    bg.endFill()
+    bg.fill(0x1A1A2A)
+    bg.rect(-window.innerWidth/2, -window.innerHeight/2, window.innerWidth, window.innerHeight)
     scene.addChild(bg)
 
-    // Titel
-    const title = new PIXI.Text('AUFTRAG AUSWÄHLEN', {
-      fontFamily: 'Arial',
-      fontSize: 28,
-      fill: 0x00FF88,
-      align: 'center' as const,
+    // Title
+    const title = new PIXI.Text({
+      text: 'AUFTRAG AUSWÄHLEN',
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 28,
+        fill: 0x00FF88,
+        align: 'center'
+      }
     })
     title.anchor.set(0.5)
     title.position.set(0, -100)
     scene.addChild(title)
 
-    // Missionen anzeigen
+    // Missions
     const missions = gameStateManager.getAvailableMissions()
     const container = new PIXI.Container()
     container.position.set(0, -20)
@@ -292,7 +326,7 @@ Reparaturen: ${stats.totalRepairs}
       container.addChild(button)
     })
 
-    // Zurück-Button
+    // Back Button
     const backButton = this.createButton('ZURÜCK', 0x666666, 0x888888, () => {
       this.showScene('workshop')
     })
@@ -303,78 +337,95 @@ Reparaturen: ${stats.totalRepairs}
   private initDiagnosisScene(): void {
     const scene = this.scenes.diagnosis
 
-    // Hintergrund
+    // Background
     const bg = new PIXI.Graphics()
-    bg.beginFill(0x1A1A2A)
-    bg.drawRect(-window.innerWidth/2, -window.innerHeight/2, window.innerWidth, window.innerHeight)
-    bg.endFill()
+    bg.fill(0x1A1A2A)
+    bg.rect(-window.innerWidth/2, -window.innerHeight/2, window.innerWidth, window.innerHeight)
     scene.addChild(bg)
 
     const mission = gameStateManager.getCurrentMission()
     if (!mission) return
 
-    // Titel
-    const title = new PIXI.Text(`DIAGNOSE: ${mission.ship.name}`, {
-      fontFamily: 'Arial',
-      fontSize: 24,
-      fill: 0x00FF88,
-      align: 'center' as const,
+    // Title
+    const title = new PIXI.Text({
+      text: `DIAGNOSE: ${mission.ship.name}`,
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 24,
+        fill: 0x00FF88,
+        align: 'center'
+      }
     })
     title.anchor.set(0.5)
     title.position.set(0, -150)
     scene.addChild(title)
 
-    // Kundensymptome
-    const symptomsTitle = new PIXI.Text('Kunde berichtet:', {
-      fontFamily: 'Arial',
-      fontSize: 18,
-      fill: 0xCCCCCC,
-      align: 'center' as const,
+    // Symptoms
+    const symptomsTitle = new PIXI.Text({
+      text: 'Kunde berichtet:',
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 18,
+        fill: 0xCCCCCC,
+        align: 'center'
+      }
     })
     symptomsTitle.anchor.set(0.5)
     symptomsTitle.position.set(0, -100)
     scene.addChild(symptomsTitle)
 
     mission.fault.symptoms.forEach((symptom, index) => {
-      const text = new PIXI.Text(`• ${symptom}`, {
-        fontFamily: 'Arial',
-        fontSize: 14,
-        fill: 0xAAAAAA,
+      const text = new PIXI.Text({
+        text: `• ${symptom}`,
+        style: {
+          fontFamily: 'Arial',
+          fontSize: 14,
+          fill: 0xAAAAAA
+        }
       })
       text.anchor.set(0.5)
       text.position.set(0, -60 + index * 25)
       scene.addChild(text)
     })
 
-    // Hinweise
+    // Hints
     const hints = getHintsForFault(mission.fault.type, 4)
-    const hintsTitle = new PIXI.Text('Untersuchungshinweise:', {
-      fontFamily: 'Arial',
-      fontSize: 18,
-      fill: 0x00FF88,
-      align: 'center' as const,
+    const hintsTitle = new PIXI.Text({
+      text: 'Untersuchungshinweise:',
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 18,
+        fill: 0x00FF88,
+        align: 'center'
+      }
     })
     hintsTitle.anchor.set(0.5)
     hintsTitle.position.set(0, 20)
     scene.addChild(hintsTitle)
 
     hints.forEach((hint, index) => {
-      const text = new PIXI.Text(`• ${hint.text}`, {
-        fontFamily: 'Arial',
-        fontSize: 14,
-        fill: hint.faultType === mission.fault.type ? 0x00FF88 : 0xAAAAAA,
+      const text = new PIXI.Text({
+        text: `• ${hint.text}`,
+        style: {
+          fontFamily: 'Arial',
+          fontSize: 14,
+          fill: hint.faultType === mission.fault.type ? 0x00FF88 : 0xAAAAAA
+        }
       })
       text.anchor.set(0.5)
       text.position.set(0, 50 + index * 25)
       scene.addChild(text)
     })
 
-    // Diagnose-Optionen
-    const optionsTitle = new PIXI.Text('Was ist das Problem?', {
-      fontFamily: 'Arial',
-      fontSize: 18,
-      fill: 0x00FF88,
-      align: 'center' as const,
+    // Diagnosis Options
+    const optionsTitle = new PIXI.Text({
+      text: 'Was ist das Problem?',
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 18,
+        fill: 0x00FF88,
+        align: 'center'
+      }
     })
     optionsTitle.anchor.set(0.5)
     optionsTitle.position.set(0, 150)
@@ -401,7 +452,7 @@ Reparaturen: ${stats.totalRepairs}
       scene.addChild(button)
     })
 
-    // Zurück-Button
+    // Back Button
     const backButton = this.createButton('ABBRECHEN', 0x666666, 0x888888, () => {
       gameStateManager.cancelMission()
       this.showScene('mission-select')
@@ -413,45 +464,53 @@ Reparaturen: ${stats.totalRepairs}
   private initRepairScene(): void {
     const scene = this.scenes.repair
 
-    // Hintergrund
+    // Background
     const bg = new PIXI.Graphics()
-    bg.beginFill(0x1A1A2A)
-    bg.drawRect(-window.innerWidth/2, -window.innerHeight/2, window.innerWidth, window.innerHeight)
-    bg.endFill()
+    bg.fill(0x1A1A2A)
+    bg.rect(-window.innerWidth/2, -window.innerHeight/2, window.innerWidth, window.innerHeight)
     scene.addChild(bg)
 
     const mission = gameStateManager.getCurrentMission()
     if (!mission || !mission.diagnosis) return
 
-    // Titel
-    const title = new PIXI.Text(`REPARATUR: ${mission.ship.name} - ${mission.fault.name}`, {
-      fontFamily: 'Arial',
-      fontSize: 20,
-      fill: 0x00FF88,
-      align: 'center' as const,
+    // Title
+    const title = new PIXI.Text({
+      text: `REPARATUR: ${mission.ship.name} - ${mission.fault.name}`,
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 20,
+        fill: 0x00FF88,
+        align: 'center'
+      }
     })
     title.anchor.set(0.5)
     title.position.set(0, -150)
     scene.addChild(title)
 
-    // Diagnose anzeigen
-    const diagnosisText = new PIXI.Text(`Diagnose: ${mission.diagnosis === 'engine' ? 'Antrieb' : mission.diagnosis === 'weapons' ? 'Waffen' : 'Bordcomputer'}`, {
-      fontFamily: 'Arial',
-      fontSize: 16,
-      fill: 0x00FF88,
-      align: 'center' as const,
+    // Diagnosis
+    const diagnosisText = new PIXI.Text({
+      text: `Diagnose: ${mission.diagnosis === 'engine' ? 'Antrieb' : mission.diagnosis === 'weapons' ? 'Waffen' : 'Bordcomputer'}`,
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 16,
+        fill: 0x00FF88,
+        align: 'center'
+      }
     })
     diagnosisText.anchor.set(0.5)
     diagnosisText.position.set(0, -110)
     scene.addChild(diagnosisText)
 
-    // Ersatzteile anzeigen
+    // Parts
     const parts = getPartsByType(mission.diagnosis)
-    const partsTitle = new PIXI.Text('Verfügbare Ersatzteile:', {
-      fontFamily: 'Arial',
-      fontSize: 18,
-      fill: 0x00FF88,
-      align: 'center' as const,
+    const partsTitle = new PIXI.Text({
+      text: 'Verfügbare Ersatzteile:',
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 18,
+        fill: 0x00FF88,
+        align: 'center'
+      }
     })
     partsTitle.anchor.set(0.5)
     partsTitle.position.set(0, -60)
@@ -478,20 +537,23 @@ Reparaturen: ${stats.totalRepairs}
       button.position.set(0, y)
       scene.addChild(button)
 
-      const descText = new PIXI.Text(part.description, {
-        fontFamily: 'Arial',
-        fontSize: 12,
-        fill: 0x888888,
-        align: 'center' as const,
-        wordWrap: true,
-        wordWrapWidth: 300,
+      const descText = new PIXI.Text({
+        text: part.description,
+        style: {
+          fontFamily: 'Arial',
+          fontSize: 12,
+          fill: 0x888888,
+          align: 'center',
+          wordWrap: true,
+          wordWrapWidth: 300
+        }
       })
       descText.anchor.set(0.5)
       descText.position.set(0, y + 30)
       scene.addChild(descText)
     })
 
-    // Zurück-Button
+    // Back Button
     const backButton = this.createButton('ZURÜCK', 0x666666, 0x888888, () => {
       gameStateManager.cancelMission()
       this.showScene('diagnosis')
@@ -503,17 +565,16 @@ Reparaturen: ${stats.totalRepairs}
   private initTestFlightScene(): void {
     const scene = this.scenes['test-flight']
 
-    // Hintergrund
+    // Background
     const bg = new PIXI.Graphics()
-    bg.beginFill(0x000000)
-    bg.drawRect(-window.innerWidth/2, -window.innerHeight/2, window.innerWidth, window.innerHeight)
-    bg.endFill()
+    bg.fill(0x000000)
+    bg.rect(-window.innerWidth/2, -window.innerHeight/2, window.innerWidth, window.innerHeight)
     scene.addChild(bg)
 
-    // Sterne-Hintergrund für Testflug
+    // Starfield
     this.createStarfield(scene, 200, 0.5)
 
-    // Testflug initialisieren
+    // Initialize test flight
     this.initTestFlight()
 
     // HUD
@@ -521,48 +582,54 @@ Reparaturen: ${stats.totalRepairs}
     hud.position.set(-window.innerWidth/2 + 20, -window.innerHeight/2 + 20)
     scene.addChild(hud)
 
-    // Zeit-Anzeige
-    const timeText = new PIXI.Text('', {
-      fontFamily: 'Arial',
-      fontSize: 16,
-      fill: 0x00FF88,
+    // Time display
+    const timeText = new PIXI.Text({
+      text: '',
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 16,
+        fill: 0x00FF88
+      }
     })
     hud.addChild(timeText)
 
-    // Punkte-Anzeige
-    const scoreText = new PIXI.Text('', {
-      fontFamily: 'Arial',
-      fontSize: 16,
-      fill: 0x00FF88,
+    // Score display
+    const scoreText = new PIXI.Text({
+      text: '',
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 16,
+        fill: 0x00FF88
+      }
     })
     scoreText.position.set(0, 30)
     hud.addChild(scoreText)
 
-    // Gesundheit
-    const healthText = new PIXI.Text('', {
-      fontFamily: 'Arial',
-      fontSize: 16,
-      fill: 0xFF4444,
+    // Health display
+    const healthText = new PIXI.Text({
+      text: '',
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 16,
+        fill: 0xFF4444
+      }
     })
     healthText.position.set(0, 60)
     hud.addChild(healthText)
 
-    // Touch-Steuerelemente
+    // Touch Controls
     this.createTouchControls(scene)
 
-    // Update-Funktion für HUD
+    // HUD Update
     const updateHUD = () => {
       if (this.testFlight) {
         const state = this.testFlight.getState()
         const remainingTime = Math.max(0, Math.ceil((TEST_FLIGHT_DURATION - state.time) / 1000))
-        
         timeText.text = `Zeit: ${remainingTime}s`
         scoreText.text = `Punkte: ${state.score}`
         healthText.text = `Hülle: ${state.player.health || 0}`
       }
     }
-
-    // HUD regelmäßig aktualisieren
     setInterval(updateHUD, 100)
   }
 
@@ -571,16 +638,12 @@ Reparaturen: ${stats.totalRepairs}
     if (!mission) return
 
     const canvas = this.app.view
-    
     this.testFlight = new TestFlight(canvas, (result) => {
-      // Testflug beendet
       if (result.success) {
         gameStateManager.completeTestFlight(result.score)
       } else {
         gameStateManager.failTestFlight()
       }
-      
-      // Zur Mission-Complete Szene
       this.testFlight = null
       this.showScene('mission-complete')
     })
@@ -591,48 +654,52 @@ Reparaturen: ${stats.totalRepairs}
 
     const scene = this.scenes['test-flight']
     const state = this.testFlight.getState()
-    const g = new PIXI.Graphics()
 
-    // Spieler zeichnen
+    // Clear previous frame
+    const existingGraphics = scene.getChildByName('test-flight-graphics') as PIXI.Graphics
+    if (existingGraphics) {
+      scene.removeChild(existingGraphics)
+    }
+
+    const g = new PIXI.Graphics()
+    g.name = 'test-flight-graphics'
+
+    // Draw player
     const player = state.player
-    g.beginFill(0x00FF88)
-    g.drawRect(
+    g.fill(0x00FF88)
+    g.rect(
       player.x - scene.position.x - player.width / 2,
       player.y - scene.position.y - player.height / 2,
       player.width,
       player.height
     )
-    g.endFill()
 
-    // Entitäten zeichnen
+    // Draw entities
     state.entities.forEach(entity => {
       if (entity.type === 'obstacle') {
-        g.beginFill(0x666666)
+        g.fill(0x666666)
       } else if (entity.type === 'enemy') {
-        g.beginFill(0xFF4444)
+        g.fill(0xFF4444)
       } else if (entity.type === 'collectible') {
-        g.beginFill(0xFFFF00)
+        g.fill(0xFFFF00)
       }
-
-      g.drawRect(
+      g.rect(
         entity.x - scene.position.x - entity.width / 2,
         entity.y - scene.position.y - entity.height / 2,
         entity.width,
         entity.height
       )
-      g.endFill()
     })
 
-    // Projektile zeichnen
+    // Draw projectiles
     state.projectiles.forEach(projectile => {
-      g.beginFill(0x00AFFF)
-      g.drawRect(
+      g.fill(0x00AFFF)
+      g.rect(
         projectile.x - scene.position.x - projectile.width / 2,
         projectile.y - scene.position.y - projectile.height / 2,
         projectile.width,
         projectile.height
       )
-      g.endFill()
     })
 
     scene.addChild(g)
@@ -642,32 +709,36 @@ Reparaturen: ${stats.totalRepairs}
     const width = window.innerWidth
     const height = window.innerHeight
 
-    // Bewegungsbereich (linke Seite)
+    // Movement area (left side)
     const moveArea = new PIXI.Graphics()
-    moveArea.beginFill(0x000000, 0.3)
-    moveArea.drawRect(-width/2, height/2 - 150, 150, 150)
-    moveArea.endFill()
+    moveArea.fill({ color: 0x000000, alpha: 0.3 })
+    moveArea.rect(-width/2, height/2 - 150, 150, 150)
     scene.addChild(moveArea)
 
-    const moveLabel = new PIXI.Text('BEWEGEN', {
-      fontFamily: 'Arial',
-      fontSize: 12,
-      fill: 0xFFFFFF,
+    const moveLabel = new PIXI.Text({
+      text: 'BEWEGEN',
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 12,
+        fill: 0xFFFFFF
+      }
     })
     moveLabel.position.set(-width/2 + 75, height/2 - 140)
     scene.addChild(moveLabel)
 
-    // Schuss-Button (rechte Seite)
+    // Fire button (right side)
     const fireButton = new PIXI.Graphics()
-    fireButton.beginFill(0xFF0000, 0.5)
-    fireButton.drawCircle(width/2 - 50, height/2 - 50, 30)
-    fireButton.endFill()
+    fireButton.fill({ color: 0xFF0000, alpha: 0.5 })
+    fireButton.circle(width/2 - 50, height/2 - 50, 30)
     scene.addChild(fireButton)
 
-    const fireLabel = new PIXI.Text('SCHIEßEN', {
-      fontFamily: 'Arial',
-      fontSize: 10,
-      fill: 0xFFFFFF,
+    const fireLabel = new PIXI.Text({
+      text: 'SCHIEßEN',
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 10,
+        fill: 0xFFFFFF
+      }
     })
     fireLabel.anchor.set(0.5)
     fireLabel.position.set(width/2 - 50, height/2 - 50)
@@ -677,17 +748,16 @@ Reparaturen: ${stats.totalRepairs}
   private initMissionCompleteScene(): void {
     const scene = this.scenes['mission-complete']
 
-    // Hintergrund
+    // Background
     const bg = new PIXI.Graphics()
-    bg.beginFill(0x1A1A2A)
-    bg.drawRect(-window.innerWidth/2, -window.innerHeight/2, window.innerWidth, window.innerHeight)
-    bg.endFill()
+    bg.fill(0x1A1A2A)
+    bg.rect(-window.innerWidth/2, -window.innerHeight/2, window.innerWidth, window.innerHeight)
     scene.addChild(bg)
 
     const mission = gameStateManager.getCurrentMission()
     if (!mission) return
 
-    // Titel
+    // Title
     let titleText = 'MISSION ERFOLGREICH!'
     let titleColor = 0x00FF88
 
@@ -696,59 +766,65 @@ Reparaturen: ${stats.totalRepairs}
       titleColor = 0xFF4444
     }
 
-    const title = new PIXI.Text(titleText, {
-      fontFamily: 'Arial',
-      fontSize: 32,
-      fill: titleColor,
-      align: 'center' as const,
+    const title = new PIXI.Text({
+      text: titleText,
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 32,
+        fill: titleColor,
+        align: 'center'
+      }
     })
     title.anchor.set(0.5)
     title.position.set(0, -100)
     scene.addChild(title)
 
-    // Mission-Info
-    const missionInfo = new PIXI.Text(`
-Schiff: ${mission.ship.name}
-Problem: ${mission.fault.name}
-Belohnung: ${mission.reward} Credits
-`.trim(), {
-      fontFamily: 'Arial',
-      fontSize: 16,
-      fill: 0xCCCCCC,
-      align: 'center' as const,
+    // Mission Info
+    const missionInfo = new PIXI.Text({
+      text: `\nSchiff: ${mission.ship.name}\nProblem: ${mission.fault.name}\nBelohnung: ${mission.reward} Credits\n`,
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 16,
+        fill: 0xCCCCCC,
+        align: 'center'
+      }
     })
     missionInfo.anchor.set(0.5)
     missionInfo.position.set(0, -20)
     scene.addChild(missionInfo)
 
-    // Testflug-Ergebnis
+    // Test Flight Result
     if (mission.testFlightScore !== undefined) {
-      const resultText = new PIXI.Text(`
-Testflug-Punkte: ${mission.testFlightScore}
-`.trim(), {
-        fontFamily: 'Arial',
-        fontSize: 16,
-        fill: 0x00FF88,
-        align: 'center' as const,
+      const resultText = new PIXI.Text({
+        text: `\nTestflug-Punkte: ${mission.testFlightScore}\n`,
+        style: {
+          fontFamily: 'Arial',
+          fontSize: 16,
+          fill: 0x00FF88,
+          align: 'center'
+        }
       })
       resultText.anchor.set(0.5)
       resultText.position.set(0, 40)
       scene.addChild(resultText)
     }
 
-    // Aktuelle Credits
+    // Credits
     const credits = gameStateManager.getCredits()
-    const creditsText = new PIXI.Text(`Aktuelle Credits: ${credits}`, {
-      fontFamily: 'Arial',
-      fontSize: 18,
-      fill: 0xFFFF00,
-      align: 'center' as const,
+    const creditsText = new PIXI.Text({
+      text: `Aktuelle Credits: ${credits}`,
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 18,
+        fill: 0xFFFF00,
+        align: 'center'
+      }
     })
     creditsText.anchor.set(0.5)
     creditsText.position.set(0, 100)
     scene.addChild(creditsText)
 
-    // Nächster Auftrag-Button
+    // Next Button
     const nextButton = this.createButton('WEITER', 0x00AA44, 0x00FF88, () => {
       gameStateManager.cancelMission()
       this.showScene('mission-select')
@@ -756,7 +832,7 @@ Testflug-Punkte: ${mission.testFlightScore}
     nextButton.position.set(0, 160)
     scene.addChild(nextButton)
 
-    // Zurück zur Werkstatt
+    // Back Button
     const backButton = this.createButton('ZUR WERKSTATT', 0x666666, 0x888888, () => {
       gameStateManager.cancelMission()
       this.showScene('workshop')
@@ -768,25 +844,27 @@ Testflug-Punkte: ${mission.testFlightScore}
   private initSettingsScene(): void {
     const scene = this.scenes.settings
 
-    // Hintergrund
+    // Background
     const bg = new PIXI.Graphics()
-    bg.beginFill(0x1A1A2A)
-    bg.drawRect(-window.innerWidth/2, -window.innerHeight/2, window.innerWidth, window.innerHeight)
-    bg.endFill()
+    bg.fill(0x1A1A2A)
+    bg.rect(-window.innerWidth/2, -window.innerHeight/2, window.innerWidth, window.innerHeight)
     scene.addChild(bg)
 
-    // Titel
-    const title = new PIXI.Text('EINSTELLUNGEN', {
-      fontFamily: 'Arial',
-      fontSize: 28,
-      fill: 0x00FF88,
-      align: 'center' as const,
+    // Title
+    const title = new PIXI.Text({
+      text: 'EINSTELLUNGEN',
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 28,
+        fill: 0x00FF88,
+        align: 'center'
+      }
     })
     title.anchor.set(0.5)
     title.position.set(0, -100)
     scene.addChild(title)
 
-    // Einstellungen
+    // Settings
     const settings = gameStateManager.getSettings()
 
     // Sound
@@ -802,7 +880,7 @@ Testflug-Punkte: ${mission.testFlightScore}
     soundButton.position.set(0, -40)
     scene.addChild(soundButton)
 
-    // Musik
+    // Music
     const musicButton = this.createToggleButton(
       'MUSIK',
       settings.musicEnabled,
@@ -815,7 +893,7 @@ Testflug-Punkte: ${mission.testFlightScore}
     musicButton.position.set(0, 10)
     scene.addChild(musicButton)
 
-    // Touch-Steuerung
+    // Touch Controls
     const touchButton = this.createToggleButton(
       'TOUCH-STEUERUNG',
       settings.touchControls,
@@ -828,7 +906,7 @@ Testflug-Punkte: ${mission.testFlightScore}
     touchButton.position.set(0, 60)
     scene.addChild(touchButton)
 
-    // Spielstand-Management
+    // Save Game
     const saveButton = this.createButton('SPIELSTAND EXPORTIEREN', 0x0066AA, 0x00AFFF, () => {
       const json = gameStateManager.exportGame()
       const blob = new Blob([json], { type: 'application/json' })
@@ -842,6 +920,7 @@ Testflug-Punkte: ${mission.testFlightScore}
     saveButton.position.set(0, 140)
     scene.addChild(saveButton)
 
+    // Import Game
     const importButton = this.createButton('SPIELSTAND IMPORTIEREN', 0x0066AA, 0x00AFFF, () => {
       const input = document.createElement('input')
       input.type = 'file'
@@ -862,6 +941,7 @@ Testflug-Punkte: ${mission.testFlightScore}
     importButton.position.set(0, 200)
     scene.addChild(importButton)
 
+    // Reset Game
     const resetButton = this.createButton('SPIEL NEU STARTEN', 0xFF4444, 0xFF6666, () => {
       if (confirm('Möchtest du wirklich ein neues Spiel starten? Alle Fortschritte gehen verloren!')) {
         gameStateManager.resetGame()
@@ -871,7 +951,7 @@ Testflug-Punkte: ${mission.testFlightScore}
     resetButton.position.set(0, 260)
     scene.addChild(resetButton)
 
-    // Zurück-Button
+    // Back Button
     const backButton = this.createButton('ZURÜCK', 0x666666, 0x888888, () => {
       this.showScene('title')
     })
@@ -882,25 +962,27 @@ Testflug-Punkte: ${mission.testFlightScore}
   private initGameOverScene(): void {
     const scene = this.scenes['game-over']
 
-    // Hintergrund
+    // Background
     const bg = new PIXI.Graphics()
-    bg.beginFill(0x1A0A0A)
-    bg.drawRect(-window.innerWidth/2, -window.innerHeight/2, window.innerWidth, window.innerHeight)
-    bg.endFill()
+    bg.fill(0x1A0A0A)
+    bg.rect(-window.innerWidth/2, -window.innerHeight/2, window.innerWidth, window.innerHeight)
     scene.addChild(bg)
 
-    // Titel
-    const title = new PIXI.Text('GAME OVER', {
-      fontFamily: 'Arial',
-      fontSize: 48,
-      fill: 0xFF4444,
-      align: 'center' as const,
+    // Title
+    const title = new PIXI.Text({
+      text: 'GAME OVER',
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 48,
+        fill: 0xFF4444,
+        align: 'center'
+      }
     })
     title.anchor.set(0.5)
     title.position.set(0, -50)
     scene.addChild(title)
 
-    // Zurück-Button
+    // Back Button
     const backButton = this.createButton('ZURÜCK ZUM TITEL', 0x666666, 0x888888, () => {
       gameStateManager.resetGame()
       this.showScene('title')
@@ -909,7 +991,7 @@ Testflug-Punkte: ${mission.testFlightScore}
     scene.addChild(backButton)
   }
 
-  // ============ HILFSMETHODEN ============
+  // ============ HELPER METHODS ============
 
   private createButton(
     text: string,
@@ -921,16 +1003,18 @@ Testflug-Punkte: ${mission.testFlightScore}
     const container = new PIXI.Container()
 
     const bg = new PIXI.Graphics()
-    bg.beginFill(bgColor)
-    bg.drawRoundedRect(-100, -25, 200, 50, 5)
-    bg.endFill()
+    bg.fill(bgColor)
+    bg.roundRect(-100, -25, 200, 50, 5)
     container.addChild(bg)
 
-    const textObj = new PIXI.Text(text, {
-      fontFamily: 'Arial',
-      fontSize: 16,
-      fill: 0xFFFFFF,
-      align: 'center' as const,
+    const textObj = new PIXI.Text({
+      text: text,
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 16,
+        fill: 0xFFFFFF,
+        align: 'center'
+      }
     })
     textObj.anchor.set(0.5)
     container.addChild(textObj)
@@ -941,16 +1025,14 @@ Testflug-Punkte: ${mission.testFlightScore}
 
       container.on('pointerover', () => {
         bg.clear()
-        bg.beginFill(hoverColor)
-        bg.drawRoundedRect(-100, -25, 200, 50, 5)
-        bg.endFill()
+        bg.fill(hoverColor)
+        bg.roundRect(-100, -25, 200, 50, 5)
       })
 
       container.on('pointerout', () => {
         bg.clear()
-        bg.beginFill(bgColor)
-        bg.drawRoundedRect(-100, -25, 200, 50, 5)
-        bg.endFill()
+        bg.fill(bgColor)
+        bg.roundRect(-100, -25, 200, 50, 5)
       })
 
       container.on('pointerdown', () => {
@@ -973,31 +1055,35 @@ Testflug-Punkte: ${mission.testFlightScore}
     const container = new PIXI.Container()
 
     const bg = new PIXI.Graphics()
-    bg.beginFill(bgColor)
-    bg.drawRoundedRect(-150, -25, 300, 50, 5)
-    bg.endFill()
+    bg.fill(bgColor)
+    bg.roundRect(-150, -25, 300, 50, 5)
     container.addChild(bg)
 
-    const textObj = new PIXI.Text(text, {
-      fontFamily: 'Arial',
-      fontSize: 16,
-      fill: 0xFFFFFF,
-      align: 'left' as const,
+    const textObj = new PIXI.Text({
+      text: text,
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 16,
+        fill: 0xFFFFFF,
+        align: 'left'
+      }
     })
     textObj.position.set(-130, -12)
     container.addChild(textObj)
 
-    // Schalter
+    // Toggle switch
     const toggle = new PIXI.Graphics()
-    toggle.beginFill(initialValue ? 0x00FF88 : 0x666666)
-    toggle.drawCircle(100, 0, 20)
-    toggle.endFill()
+    toggle.fill(initialValue ? 0x00FF88 : 0x666666)
+    toggle.circle(100, 0, 20)
     container.addChild(toggle)
 
-    const toggleText = new PIXI.Text(initialValue ? 'AN' : 'AUS', {
-      fontFamily: 'Arial',
-      fontSize: 12,
-      fill: 0xFFFFFF,
+    const toggleText = new PIXI.Text({
+      text: initialValue ? 'AN' : 'AUS',
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 12,
+        fill: 0xFFFFFF
+      }
     })
     toggleText.anchor.set(0.5)
     toggleText.position.set(100, 0)
@@ -1008,16 +1094,14 @@ Testflug-Punkte: ${mission.testFlightScore}
 
     container.on('pointerover', () => {
       bg.clear()
-      bg.beginFill(hoverColor)
-      bg.drawRoundedRect(-150, -25, 300, 50, 5)
-      bg.endFill()
+      bg.fill(hoverColor)
+      bg.roundRect(-150, -25, 300, 50, 5)
     })
 
     container.on('pointerout', () => {
       bg.clear()
-      bg.beginFill(bgColor)
-      bg.drawRoundedRect(-150, -25, 300, 50, 5)
-      bg.endFill()
+      bg.fill(bgColor)
+      bg.roundRect(-150, -25, 300, 50, 5)
     })
 
     container.on('pointerdown', () => {
@@ -1025,10 +1109,8 @@ Testflug-Punkte: ${mission.testFlightScore}
       onChange(newValue)
 
       toggle.clear()
-      toggle.beginFill(newValue ? 0x00FF88 : 0x666666)
-      toggle.drawCircle(100, 0, 20)
-      toggle.endFill()
-
+      toggle.fill(newValue ? 0x00FF88 : 0x666666)
+      toggle.circle(100, 0, 20)
       toggleText.text = newValue ? 'AN' : 'AUS'
     })
 
@@ -1043,46 +1125,40 @@ Testflug-Punkte: ${mission.testFlightScore}
       const brightness = Math.random() * 0.5 + 0.5
 
       const star = new PIXI.Graphics()
-      star.beginFill(0xFFFFFF, opacity * brightness)
-      star.drawCircle(x, y, size)
-      star.endFill()
+      star.fill({ color: 0xFFFFFF, alpha: opacity * brightness })
+      star.circle(x, y, size)
       container.addChild(star)
     }
   }
 
   private createWorkshopBackground(container: PIXI.Container): void {
-    // Werkstatt-Hintergrund mit Maschinen und Werkzeugen
     const bg = new PIXI.Graphics()
 
-    // Boden
-    bg.beginFill(0x333333)
-    bg.drawRect(-window.innerWidth/2, window.innerHeight/2 - 50, window.innerWidth, 50)
-    bg.endFill()
+    // Floor
+    bg.fill(0x333333)
+    bg.rect(-window.innerWidth/2, window.innerHeight/2 - 50, window.innerWidth, 50)
 
-    // Wände
-    bg.beginFill(0x222222)
-    bg.drawRect(-window.innerWidth/2, -window.innerHeight/2, 20, window.innerHeight)
-    bg.drawRect(window.innerWidth/2 - 20, -window.innerHeight/2, 20, window.innerHeight)
-    bg.endFill()
+    // Walls
+    bg.fill(0x222222)
+    bg.rect(-window.innerWidth/2, -window.innerHeight/2, 20, window.innerHeight)
+    bg.rect(window.innerWidth/2 - 20, -window.innerHeight/2, 20, window.innerHeight)
 
-    // Decke mit Lichtern
+    // Ceiling lights
     for (let i = 0; i < 5; i++) {
       const x = -window.innerWidth/2 + 100 + i * 200
-      bg.beginFill(0xFFFF00, 0.3)
-      bg.drawCircle(x, -window.innerHeight/2 + 30, 30)
-      bg.endFill()
+      bg.fill({ color: 0xFFFF00, alpha: 0.3 })
+      bg.circle(x, -window.innerHeight/2 + 30, 30)
     }
 
-    // Werkbank
-    bg.beginFill(0x444444)
-    bg.drawRect(-100, window.innerHeight/2 - 80, 200, 30)
-    bg.endFill()
+    // Workbench
+    bg.fill(0x444444)
+    bg.rect(-100, window.innerHeight/2 - 80, 200, 30)
 
     container.addChild(bg)
   }
 
   private updateMissionDisplay(container: PIXI.Container): void {
-    // Alte Elemente entfernen
+    // Remove old elements
     while (container.children.length > 1) {
       container.removeChildAt(1)
     }
@@ -1104,22 +1180,28 @@ Testflug-Punkte: ${mission.testFlightScore}
       button.position.set(0, y)
       container.addChild(button)
 
-      const rewardText = new PIXI.Text(`Belohnung: ${mission.reward} Credits`, {
-        fontFamily: 'Arial',
-        fontSize: 12,
-        fill: 0xFFFF00,
+      const rewardText = new PIXI.Text({
+        text: `Belohnung: ${mission.reward} Credits`,
+        style: {
+          fontFamily: 'Arial',
+          fontSize: 12,
+          fill: 0xFFFF00
+        }
       })
       rewardText.anchor.set(0.5)
       rewardText.position.set(0, y + 30)
       container.addChild(rewardText)
     })
 
-    // Keine Missionen
+    // No missions
     if (missions.length === 0) {
-      const text = new PIXI.Text('Keine Aufträge verfügbar', {
-        fontFamily: 'Arial',
-        fontSize: 16,
-        fill: 0x888888,
+      const text = new PIXI.Text({
+        text: 'Keine Aufträge verfügbar',
+        style: {
+          fontFamily: 'Arial',
+          fontSize: 16,
+          fill: 0x888888
+        }
       })
       text.anchor.set(0.5)
       text.position.set(0, 40)
@@ -1127,25 +1209,25 @@ Testflug-Punkte: ${mission.testFlightScore}
     }
   }
 
-  // ============ SZENEN-WECHSEL ============
+  // ============ SCENE SWITCHING ============
 
   showScene(scene: GameScene): void {
-    // Alle Szenen ausblenden
+    // Hide all scenes
     Object.values(this.scenes).forEach(s => s.visible = false)
 
-    // Neue Szene einblenden
+    // Show new scene
     this.currentScene = scene
     this.scenes[scene].visible = true
 
-    // Position zurücksetzen
+    // Reset position
     this.scenes[scene].position.set(window.innerWidth / 2, window.innerHeight / 2)
 
-    // Spezielle Initialisierung für Testflug
+    // Special initialization for test flight
     if (scene === 'test-flight') {
       this.initTestFlight()
     }
 
-    // Mission-Select aktualisieren
+    // Update mission select
     if (scene === 'mission-select' || scene === 'workshop') {
       const workshopScene = this.scenes.workshop
       const missionContainer = workshopScene.getChildAt(5) as PIXI.Container
@@ -1154,20 +1236,19 @@ Testflug-Punkte: ${mission.testFlightScore}
       }
     }
 
-    // Diagnose-Szene aktualisieren
+    // Refresh diagnosis scene
     if (scene === 'diagnosis') {
-      // Szene neu erstellen, um aktuelle Mission anzuzeigen
       this.scenes.diagnosis.destroy({ children: true })
       this.initDiagnosisScene()
     }
 
-    // Reparatur-Szene aktualisieren
+    // Refresh repair scene
     if (scene === 'repair') {
       this.scenes.repair.destroy({ children: true })
       this.initRepairScene()
     }
 
-    // Mission-Complete Szene aktualisieren
+    // Refresh mission complete scene
     if (scene === 'mission-complete') {
       this.scenes['mission-complete'].destroy({ children: true })
       this.initMissionCompleteScene()
@@ -1175,7 +1256,6 @@ Testflug-Punkte: ${mission.testFlightScore}
   }
 
   private handleGameStateChange(): void {
-    // Bei Änderungen des Spielstands Szenen aktualisieren
     if (this.currentScene === 'workshop' || this.currentScene === 'mission-select') {
       const workshopScene = this.scenes.workshop
       const missionContainer = workshopScene.getChildAt(5) as PIXI.Container
@@ -1193,6 +1273,8 @@ Testflug-Punkte: ${mission.testFlightScore}
       this.testFlight.destroy()
     }
 
-    this.app.destroy()
+    if (this.app) {
+      this.app.destroy()
+    }
   }
 }
