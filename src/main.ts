@@ -15,31 +15,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
   console.log('✅ Canvas element found')
 
-  // Initialize the game
-  try {
-    // Import Renderer dynamically to ensure DOM is ready
-    import('./ui/Renderer.js').then(({ Renderer }) => {
+  // Initialize the game via dynamic import (ensures DOM is ready)
+  import('./ui/Renderer.js')
+    .then(({ Renderer }) => {
       console.log('✅ Renderer module loaded')
-      const renderer = new Renderer(canvas)
+      new Renderer(canvas)
       console.log('✅ Game initialized successfully')
       console.log('🎮 Rebel Repair ist bereit!')
-      
+
       // Set up Service Worker for PWA
       setupServiceWorker()
-      
+
       // Set up offline notification
       setupOfflineNotification()
-      
+
       // Detect touch devices
       detectTouchDevice()
-    }).catch(error => {
-      console.error('❌ Failed to load Renderer module:', error)
-      showCriticalError(`Modul-Ladefehler: ${error.message}`)
     })
-  } catch (error) {
-    console.error('❌ Initialization error:', error)
-    showCriticalError(`Initialisierungsfehler: ${error.message}`)
-  }
+    .catch((error: unknown) => {
+      console.error('❌ Failed to load Renderer module:', error)
+      showCriticalError(`Modul-Ladefehler: ${error instanceof Error ? error.message : String(error)}`)
+    })
 })
 
 function showCriticalError(message: string): void {
@@ -92,7 +88,7 @@ function setupServiceWorker(): void {
 
 function setupOfflineNotification(): void {
   window.addEventListener('load', () => {
-    if (navigator.onLine) {
+    if (navigator.onLine && 'caches' in window) {
       caches.match('/').then(cache => {
         if (cache) {
           const notice = document.createElement('div')

@@ -6,7 +6,7 @@ import { getHintsForFault } from '../data/faults'
 import { getPartsByType } from '../data/parts'
 
 export class Renderer {
-  private app: PIXI.Application
+  private app: PIXI.Application | null = null
   private scenes: Record<GameScene, PIXI.Container> = {} as any
   private currentScene: GameScene = 'title'
   private testFlight: TestFlight | null = null
@@ -83,7 +83,7 @@ export class Renderer {
     sceneNames.forEach(scene => {
       this.scenes[scene] = new PIXI.Container()
       this.scenes[scene].visible = false
-      this.app.stage.addChild(this.scenes[scene])
+      this.app!.stage.addChild(this.scenes[scene])
     })
 
     // Initialize individual scenes
@@ -120,6 +120,8 @@ export class Renderer {
   private handleResize(): void {
     const width = window.innerWidth
     const height = window.innerHeight
+
+    if (!this.app) return
 
     this.app.renderer.resize(width, height)
 
@@ -590,7 +592,9 @@ export class Renderer {
     const mission = gameStateManager.getCurrentMission()
     if (!mission) return
 
-    const canvas = this.app.view
+    if (!this.app) return
+
+    const canvas = this.app.view as HTMLCanvasElement
     this.testFlight = new TestFlight(canvas, (result) => {
       if (result.success) {
         gameStateManager.completeTestFlight(result.score)
