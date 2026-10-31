@@ -1,0 +1,130 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: #0a0a1a;
+  color: #ffffff;
+  font-family: 'Arial', sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+#game-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.touch-device {
+  touch-action: manipulation;
+}
+
+/* Loading Screen */
+.loading-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2a 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+}
+
+.loading-text {
+  color: #00ff88;
+  font-size: 24px;
+  margin-bottom: 20px;
+}
+
+.loading-bar {
+  width: 300px;
+  height: 30px;
+  background: #333;
+  border-radius: 15px;
+  overflow: hidden;
+}
+
+.loading-progress {
+  height: 100%;
+  background: linear-gradient(90deg, #00ff88, #00aaff);
+  border-radius: 15px;
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
+  
+  #game-canvas {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+@media (max-height: 500px) {
+  body {
+    font-size: 12px;
+  }
+}
+
+/* Portrait Warning */
+.portrait-warning {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.9);
+  color: #ff4444;
+  padding: 20px;
+  border-radius: 10px;
+  text-align: center;
+  z-index: 10000;
+  display: none;
+}
+
+.portrait-warning.show {
+  display: block;
+}
+
+.portrait-warning h2 {
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+
+.portrait-warning p {
+  font-size: 16px;
+  margin-bottom: 20px;
+}
+
+.portrait-warning button {
+  background: #00ff88;
+  color: #000;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+/* PWA Fullscreen */
+.pwa-fullscreen {
+  width: 100vw;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+}

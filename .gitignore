@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test coverage
+coverage/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Cache
+.cache/
+.pnp/
+.pnp.js
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Generated icons (can be regenerated)
+public/icons/*.png
