@@ -6,7 +6,7 @@ import { getHintsForFault } from '../data/faults'
 import { getPartsByType } from '../data/parts'
 
 export class Renderer {
-  private app: PIXI.Application
+  private app: PIXI.Application | null = null
   private scenes: Record<GameScene, PIXI.Container> = {} as any
   private currentScene: GameScene = 'title'
   private testFlight: TestFlight | null = null
@@ -14,12 +14,18 @@ export class Renderer {
   private lastTime: number = 0
 
   constructor(canvas: HTMLCanvasElement) {
-    this.initApplication(canvas)
+    console.log('🎨 Initializing Renderer...')
+    this.initApplication(canvas).catch(error => {
+      console.error('❌ PIXI Initialization failed:', error)
+      this.showFallbackMessage(canvas)
+    })
   }
 
   private async initApplication(canvas: HTMLCanvasElement): Promise<void> {
     try {
-      // Initialize PIXI Application with v8 API
+      console.log('🔄 Initializing PIXI.Application...')
+
+      // Try WebGL first, fall back to Canvas if needed
       this.app = await PIXI.Application.init({
         view: canvas,
         width: window.innerWidth,
@@ -28,26 +34,29 @@ export class Renderer {
         resolution: window.devicePixelRatio || 1,
         autoDensity: true,
         antialias: true,
+        forceCanvas: false, // Try WebGL first
       })
 
-      // Resize-Handler
+      console.log('✅ PIXI Application initialized with:', this.app.renderer.type)
+
+      // Set up resize handler
       window.addEventListener('resize', this.handleResize.bind(this))
 
-      // Initialize scenes
+      // Initialize all scenes
       this.initScenes()
 
       // Show first scene
       this.showScene('title')
 
-      // Game State Listener
+      // Subscribe to game state changes
       gameStateManager.subscribe(this.handleGameStateChange.bind(this))
 
-      // Start Game Loop
+      // Start game loop
       this.startGameLoop()
+
     } catch (error) {
-      console.error('Failed to initialize PIXI Application:', error)
-      // Fallback for mobile devices with WebGL issues
-      this.showFallbackMessage(canvas)
+      console.error('❌ PIXI Initialization error:', error)
+      throw error
     }
   }
 
@@ -59,12 +68,16 @@ export class Renderer {
       ctx.fillStyle = '#00FF88'
       ctx.font = '24px Arial'
       ctx.textAlign = 'center'
-      ctx.fillText('WebGL wird nicht unterstützt', canvas.width / 2, canvas.height / 2 - 20)
-      ctx.fillText('Bitte verwende einen modernen Browser', canvas.width / 2, canvas.height / 2 + 20)
+      ctx.fillText('WebGL/Canvas nicht verfügbar', canvas.width / 2, canvas.height / 2 - 20)
+      ctx.fillStyle = '#CCCCCC'
+      ctx.font = '16px Arial'
+      ctx.fillText('Bitte verwende einen modernen Browser oder aktiviere WebGL', canvas.width / 2, canvas.height / 2 + 20)
     }
   }
 
   private initScenes(): void {
+    console.log('📂 Initializing scenes...')
+    
     // Create all scene containers
     const sceneNames: GameScene[] = [
       'title', 'workshop', 'mission-select', 'diagnosis', 
@@ -74,7 +87,9 @@ export class Renderer {
     sceneNames.forEach(scene => {
       this.scenes[scene] = new PIXI.Container()
       this.scenes[scene].visible = false
-      this.app.stage.addChild(this.scenes[scene])
+      if (this.app) {
+        this.app.stage.addChild(this.scenes[scene])
+      }
     })
 
     // Initialize individual scenes
@@ -87,6 +102,8 @@ export class Renderer {
     this.initMissionCompleteScene()
     this.initSettingsScene()
     this.initGameOverScene()
+    
+    console.log('✅ All scenes initialized')
   }
 
   private startGameLoop(): void {
@@ -110,7 +127,7 @@ export class Renderer {
     const width = window.innerWidth
     const height = window.innerHeight
 
-    if (this.app && this.app.renderer) {
+    if (this.app) {
       this.app.renderer.resize(width, height)
     }
 
@@ -137,7 +154,7 @@ export class Renderer {
     bg.rect(-window.innerWidth/2, -window.innerHeight/2, window.innerWidth, window.innerHeight)
     scene.addChild(bg)
 
-    // Starfield background (Parallax)
+    // Starfield background
     this.createStarfield(scene, 100, 0.1)
 
     // Title
@@ -637,7 +654,9 @@ export class Renderer {
     const mission = gameStateManager.getCurrentMission()
     if (!mission) return
 
-    const canvas = this.app.view
+    const canvas = this.app?.view
+    if (!canvas) return
+
     this.testFlight = new TestFlight(canvas, (result) => {
       if (result.success) {
         gameStateManager.completeTestFlight(result.score)
@@ -650,7 +669,7 @@ export class Renderer {
   }
 
   private renderTestFlight(): void {
-    if (!this.testFlight) return
+    if (!this.testFlight || !this.app) return
 
     const scene = this.scenes['test-flight']
     const state = this.testFlight.getState()
@@ -1275,6 +1294,7 @@ export class Renderer {
 
     if (this.app) {
       this.app.destroy()
+      this.app = null
     }
   }
 }

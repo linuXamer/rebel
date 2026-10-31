@@ -1,98 +1,112 @@
+// Main entry point for Rebel Repair
 import { Renderer } from './ui/Renderer'
 
+// Wait for DOM to be ready
+console.log('🔄 Waiting for DOM...')
 
-// Warten bis DOM bereit ist
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  console.log('✅ DOM ready, initializing game...')
+  
   const canvas = document.getElementById('game-canvas') as HTMLCanvasElement
   
   if (!canvas) {
-    console.error('Canvas element not found')
+    console.error('❌ Canvas element not found!')
+    const errorDiv = document.createElement('div')
+    errorDiv.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #ff4444;
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      font-family: Arial;
+      z-index: 10000;
+    `
+    errorDiv.textContent = 'Canvas-Element nicht gefunden. Bitte lade die Seite neu.'
+    document.body.appendChild(errorDiv)
     return
   }
 
-  // Renderer initialisieren
-  new Renderer(canvas)
+  console.log('✅ Canvas found, initializing renderer...')
 
-  // Service Worker registrieren (für PWA)
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js')
-        .then(registration => {
-          console.log('ServiceWorker registration successful')
-          
-          // Update-Hinweis
-          registration.onupdatefound = () => {
-            const newWorker = registration.installing
-            if (newWorker) {
-              newWorker.onstatechange = () => {
-                if (newWorker.state === 'installed') {
-                  // Neue Version verfügbar
-                  console.log('New version available')
-                  
-                  // Hinweis anzeigen
-                  const updateNotice = document.createElement('div')
-                  updateNotice.style.position = 'fixed'
-                  updateNotice.style.bottom = '20px'
-                  updateNotice.style.right = '20px'
-                  updateNotice.style.backgroundColor = '#00ff88'
-                  updateNotice.style.color = '#000'
-                  updateNotice.style.padding = '10px 20px'
-                  updateNotice.style.borderRadius = '5px'
-                  updateNotice.style.cursor = 'pointer'
-                  updateNotice.style.zIndex = '1000'
-                  updateNotice.textContent = 'Neue Version verfügbar - Klicken zum Neuladen'
-                  updateNotice.onclick = () => {
-                    window.location.reload()
-                  }
-                  document.body.appendChild(updateNotice)
-                }
-              }
-            }
-          }
-        })
-        .catch(err => {
-          console.log('ServiceWorker registration failed: ', err)
-        })
-    })
-  }
+  // Initialize renderer (async!)
+  try {
+    const renderer = new Renderer(canvas)
+    console.log('✅ Renderer initialized successfully')
+    console.log('🎮 Game is ready!')
 
-  // Offline-Hinweis
-  window.addEventListener('load', () => {
-    if (navigator.onLine) {
-      // Prüfen ob die App offline verfügbar ist
-      caches.match('/').then(cache => {
-        if (cache) {
-          const offlineNotice = document.createElement('div')
-          offlineNotice.style.position = 'fixed'
-          offlineNotice.style.bottom = '20px'
-          offlineNotice.style.left = '20px'
-          offlineNotice.style.backgroundColor = '#00aaff'
-          offlineNotice.style.color = '#fff'
-          offlineNotice.style.padding = '10px 20px'
-          offlineNotice.style.borderRadius = '5px'
-          offlineNotice.style.zIndex = '1000'
-          offlineNotice.textContent = 'App ist offline verfügbar'
-          document.body.appendChild(offlineNotice)
-          
-          setTimeout(() => {
-            offlineNotice.style.opacity = '0'
-            setTimeout(() => offlineNotice.remove(), 1000)
-          }, 3000)
-        }
+    // Service Worker registration (for PWA)
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(() => console.log('✅ ServiceWorker registered'))
+          .catch(err => console.warn('⚠️ ServiceWorker registration failed:', err))
       })
     }
-  })
 
-  // Touch-Detection für Mobile
-  const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0
-  if (isTouchDevice) {
-    document.body.classList.add('touch-device')
-  }
+    // Offline notification
+    window.addEventListener('load', () => {
+      if (navigator.onLine) {
+        caches.match('/').then(cache => {
+          if (cache) {
+            const notice = document.createElement('div')
+            notice.style.cssText = `
+              position: fixed;
+              bottom: 20px;
+              left: 20px;
+              background: #00aaff;
+              color: #fff;
+              padding: 10px 20px;
+              border-radius: 5px;
+              z-index: 1000;
+              opacity: 0;
+              transition: opacity 0.5s;
+            `
+            notice.textContent = 'App ist offline verfügbar'
+            document.body.appendChild(notice)
+            setTimeout(() => {
+              notice.style.opacity = '1'
+              setTimeout(() => notice.style.opacity = '0', 2000)
+              setTimeout(() => notice.remove(), 3000)
+            }, 100)
+          }
+        })
+      }
+    })
 
-  // Verhindere Standard-Touch-Verhalten
-  document.addEventListener('touchmove', (e) => {
-    if (e.target === canvas) {
-      e.preventDefault()
+    // Touch device detection
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+    if (isTouchDevice) {
+      document.body.classList.add('touch-device')
+      console.log('📱 Touch device detected')
     }
-  }, { passive: false })
+
+    // Prevent default touch behavior on canvas
+    document.addEventListener('touchmove', (e) => {
+      if (e.target === canvas) {
+        e.preventDefault()
+      }
+    }, { passive: false })
+
+  } catch (error) {
+    console.error('❌ Initialization error:', error)
+    const errorDiv = document.createElement('div')
+    errorDiv.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #ff4444;
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      font-family: Arial;
+      z-index: 10000;
+      max-width: 80%;
+    `
+    errorDiv.textContent = `Initialisierungsfehler: ${error.message}\n\nBitte lade die Seite neu oder versuche einen anderen Browser.`
+    document.body.appendChild(errorDiv)
+  }
 })
