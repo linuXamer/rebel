@@ -1177,21 +1177,31 @@ export class Renderer {
 
     // Refresh diagnosis scene
     if (scene === 'diagnosis') {
-      this.scenes.diagnosis.destroy({ children: true })
+      this.rebuildScene('diagnosis')
       this.initDiagnosisScene()
     }
 
     // Refresh repair scene
     if (scene === 'repair') {
-      this.scenes.repair.destroy({ children: true })
+      this.rebuildScene('repair')
       this.initRepairScene()
     }
 
     // Refresh mission complete scene
     if (scene === 'mission-complete') {
-      this.scenes['mission-complete'].destroy({ children: true })
+      this.rebuildScene('mission-complete')
       this.initMissionCompleteScene()
     }
+  }
+
+  private rebuildScene(scene: GameScene): void {
+    const old = this.scenes[scene]
+    old.destroy({ children: true })
+    const fresh = new PIXI.Container()
+    fresh.visible = true
+    fresh.position.set(window.innerWidth / 2, window.innerHeight / 2)
+    this.app!.stage.addChild(fresh)
+    this.scenes[scene] = fresh
   }
 
   private handleGameStateChange(): void {
